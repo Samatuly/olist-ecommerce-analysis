@@ -59,7 +59,12 @@ olist-ecommerce-analysis/
    source .venv/bin/activate        # Windows: .\.venv\Scripts\Activate.ps1
    pip install -r requirements.txt
    ```
-4. Run the notebooks in order, starting with `notebooks/01_load.ipynb`.
+4. Run `notebooks/01_load.ipynb` and `notebooks/02_cleaning.ipynb` — the second one writes clean files to `data/processed/`.
+5. Load the clean data into PostgreSQL (recreates all tables, ~15 s):
+   ```bash
+   python src/build_db.py
+   ```
+6. Continue with `notebooks/03_sql_analysis.ipynb`.
 
 ## Data quality findings (stage 1)
 
@@ -93,6 +98,17 @@ olist-ecommerce-analysis/
 - **Late delivery** = delivered after the estimated date (6.8% of orders).
 
 First insight: only **3.0% of customers** placed more than one order.
+
+## Database (stage 3)
+
+`sql/schema.sql` defines 6 tables with primary keys, foreign keys, `CHECK` constraints and indexes;
+`src/build_db.py` bulk-loads the clean files with `COPY` and verifies row counts.
+
+```
+customers ──< orders ──< order_items >── products
+                 ├──< order_payments
+                 └──── order_reviews (1 : 0..1)
+```
 
 ## Data source
 
