@@ -31,7 +31,8 @@ olist-ecommerce-analysis/
 │   └── 04_metrics.ipynb        # RFM, cohorts, charts
 ├── sql/                # schema + one file per analytical query
 ├── src/
-│   └── build_db.py     # loads clean data into PostgreSQL
+│   ├── build_db.py     # loads clean data into PostgreSQL
+│   └── db.py           # connection helper used by the notebooks
 ├── reports/figures/    # charts used in this README
 ├── docker-compose.yml
 ├── .env.example
@@ -109,6 +110,21 @@ customers ──< orders ──< order_items >── products
                  ├──< order_payments
                  └──── order_reviews (1 : 0..1)
 ```
+
+## SQL analysis (stage 3)
+
+10 queries in `sql/`, executed and interpreted in `notebooks/03_sql_analysis.ipynb`
+(CTEs, window functions `LAG` / `RANK` / `NTILE` / `SUM() OVER`, `FILTER`, `PERCENTILE_CONT`, cohort logic with `AGE`).
+
+| Question | Finding |
+| --- | --- |
+| Revenue trend | Fast growth in 2017, **plateau at ~1.0–1.1 M BRL/month** from Mar 2018 |
+| Growth driver | More orders; AOV stable at ~150–170 BRL |
+| Top categories | 5 of 74 categories = 39% of revenue |
+| Geography | SP + RJ + MG = 63% of revenue; remote states pay up to 22% freight |
+| Retention | **Only 3.0% of customers buy twice**; month-1 cohort retention < 1% |
+| Satisfaction | Average score **4.3 on time vs. 2.3 late** (1.7 when 5+ days late) |
+| Payments | 77% credit card, 3.5 installments on average |
 
 ## Data source
 
