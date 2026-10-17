@@ -1,42 +1,151 @@
 # Olist E-commerce Analysis
 
-End-to-end analysis of ~100k orders from **Olist**, the largest department store on Brazilian marketplaces (2016–2018):
-data cleaning in Python, a relational model in **PostgreSQL**, analytical SQL, customer segmentation (RFM) and cohort retention.
+**Why does a fast-growing marketplace stop growing?**
+An end-to-end analysis of ~100k orders from **Olist**, the largest department store on Brazilian marketplaces (2016–2018):
+data cleaning in Python, a relational model in **PostgreSQL**, 10 analytical SQL queries, customer segmentation (RFM)
+and cohort retention.
 
-> 🚧 Work in progress — results and charts will be added as each stage is completed.
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-2.x-150458?logo=pandas&logoColor=white)
+![Jupyter](https://img.shields.io/badge/Jupyter-notebooks-F37626?logo=jupyter&logoColor=white)
 
-## Business questions
+## Key results
 
-1. How did revenue, order count and average order value (AOV) change month by month?
-2. Which product categories and states generate most of the revenue?
-3. What share of customers come back for a second purchase (cohort retention)?
-4. Which RFM segments do customers fall into, and which are the most valuable?
-5. How does delivery time affect the review score?
+| Metric | Value |
+| --- | --- |
+| Delivered orders analysed | 96,470 |
+| Unique customers | 93,350 |
+| Revenue (price + freight) | 15.4M BRL |
+| Average order value | 160 BRL |
+| Customers who bought twice | **3.0%** |
+| Late deliveries | 6.8% |
+| Review score: on time vs. 5+ days late | **4.3 vs. 1.7** |
 
-## Tech stack
+**Main conclusion:** Olist grew in 2017 purely by acquiring new customers. Almost none of them come back
+(3% repeat rate, under 1% monthly retention), so when acquisition slowed in 2018, revenue flattened at ~1.07M BRL a month.
+The biggest levers are **winning back high-value one-time buyers** (40% of revenue) and **fixing late deliveries**,
+which turn a 4.3-star experience into a 1.7-star one.
 
-Python 3.11 · pandas · matplotlib · seaborn · PostgreSQL 16 · SQLAlchemy · Docker Compose · Jupyter
+## Findings
+
+### 1. Growth stopped in 2018
+
+![Revenue trend](reports/figures/01_revenue_trend.png)
+
+- Monthly revenue grew ~8× during 2017 (average +26% month over month), peaking on **Black Friday, Nov 2017 (1.15M BRL)**.
+- From March 2018 revenue is **flat at ~1.07M BRL per month** (average MoM growth +0.6%).
+- Average order value stayed in a narrow 146–170 BRL band, so all growth came from **order volume, not basket size**.
+
+### 2. Customers almost never come back
+
+![Cohort retention](reports/figures/04_cohort_retention.png)
+
+- Only **2,801 of 93,350 customers (3.0%)** placed a second order.
+- In every monthly cohort, **fewer than 1% of customers buy again in any following month** (month-1 average: 0.48%).
+- Retention does not improve for newer cohorts, so the problem is structural, not seasonal.
+
+### 3. Most revenue sits with one-time high-value buyers
+
+![RFM segments](reports/figures/05_rfm_segments.png)
+
+| Segment | Customers | Revenue share | Avg. spend |
+| --- | --- | --- | --- |
+| Champions (repeat, recent) | 1.9% | 3.7% | 315 BRL |
+| Loyal, slipping (repeat, not recent) | 1.1% | 1.9% | 296 BRL |
+| New high-value (1 order, recent, big basket) | 15.4% | 28.2% | 302 BRL |
+| New low-value | 23.3% | 10.3% | 73 BRL |
+| **At risk, high-value** (1 big order, long ago) | 22.2% | **40.1%** | 298 BRL |
+| Hibernating | 36.1% | 15.8% | 72 BRL |
+
+- Repeat buyers spend about **2× more** per person than the average customer, but they are only 3% of the base.
+- **"At risk, high-value"** customers placed one large order ~11 months ago and never returned: **40% of all revenue**.
+
+### 4. Late delivery destroys satisfaction
+
+![Delivery vs review](reports/figures/06_delivery_vs_review.png)
+
+- On-time orders average **4.3 stars**; orders 6+ days late average **1.7 stars**, and 78% of them get 1–2 stars.
+- Even a 1–5 day delay drops the score to 3.0.
+- Only 6.8% of orders are late, but they generate a large share of all negative reviews.
+
+### 5. Revenue is concentrated, and remote customers pay heavily for shipping
+
+![Top categories](reports/figures/02_top_categories.png)
+
+![Freight by state](reports/figures/03_freight_by_state.png)
+
+- **5 of 74 categories bring 39% of revenue** (health & beauty, watches & gifts, bed & bath, sports, computers).
+- **São Paulo, Rio de Janeiro and Minas Gerais = 63% of revenue.**
+- Freight is 12% of the order value in São Paulo but up to **22%** in northern states, where customers place larger
+  orders (AOV 200–270 BRL). Expensive shipping is a likely barrier to growth outside the South-East.
+
+## Recommendations
+
+| # | Action | Target | Why |
+| --- | --- | --- | --- |
+| 1 | **Win-back campaign** (personal offer, free shipping on the 2nd order) | "At risk, high-value", 20.7k customers | 40% of revenue, proven willingness to spend ~300 BRL |
+| 2 | **Second-purchase trigger** 30–60 days after the first order | "New high-value", 14.4k customers | Convert before they slip into "at risk" |
+| 3 | **Delivery reliability**: realistic delivery estimates, proactive alerts and compensation when an order will be late | All orders, focus on the 6.8% late | Late orders score 2.0 stars lower on average (2.6 when 6+ days late) |
+| 4 | **Regional shipping subsidy / partner logistics** in the North and North-East | Customers in high-freight states | Freight up to 22% of the basket suppresses demand |
+| 5 | **Track retention as a core KPI** (repeat rate, month-1 retention by cohort) | Management dashboard | Growth by acquisition alone has already stalled |
+
+**Suggested A/B test:** offer free shipping on the second order to half of new high-value customers and compare
+the 60-day repeat rate. A lift from 3% to 5% would add roughly 290 extra orders per 14.4k customers (~86k BRL at 300 BRL each).
+
+## Methodology
+
+1. **Data quality check** (`01_load.ipynb`): sizes, types, missing values, duplicates, key integrity.
+2. **Cleaning** (`02_cleaning.ipynb`): delivered orders only, dates converted, latest review per order,
+   untranslated categories fixed, delivery features (`delivery_days`, `delay_days`, `is_late`) added.
+3. **Database** (`sql/schema.sql`, `src/build_db.py`): 6 tables with primary keys, foreign keys, `CHECK`
+   constraints and indexes; bulk load with `COPY`.
+4. **SQL analysis** (`03_sql_analysis.ipynb`, `sql/01–10`): CTEs, window functions (`LAG`, `RANK`, `NTILE`,
+   `SUM() OVER`), `FILTER`, `PERCENTILE_CONT`, cohort logic with `AGE`.
+5. **Metrics & charts** (`04_metrics.ipynb`): RFM segments, cohort heatmap, final charts.
+
+**Key definitions**
+
+- **Revenue** = `price + freight_value` from order items (payments differ in only 0.26% of orders and cannot be split by category).
+- **Customer** = `customer_unique_id`. `customer_id` is created per order, so using it would hide every repeat purchase.
+- **Trend period** = Jan 2017 – Aug 2018 (2016 has only ~270 orders with gaps).
+- **Late delivery** = delivered after the date promised to the customer.
+- **RFM**: R and M are quintiles; F is scored 1 / 2 / 3+ orders, because 97% of customers have exactly one order
+  and quintiles would split identical customers into different groups.
+
+**Limitations:** the data covers only delivered orders and ends in Aug 2018; review scores are available for 99% of orders;
+the relationship between late delivery and retention is a correlation, which the suggested A/B test would confirm.
 
 ## Project structure
 
 ```
 olist-ecommerce-analysis/
 ├── data/
-│   ├── raw/            # original CSV files (not tracked by Git)
-│   └── processed/      # cleaned tables
+│   ├── raw/                  # original CSV files (not tracked by Git)
+│   └── processed/            # cleaned tables (not tracked by Git)
 ├── notebooks/
-│   ├── 01_load.ipynb           # first look & data quality
-│   ├── 02_cleaning.ipynb       # cleaning & preparation
-│   ├── 03_sql_analysis.ipynb   # SQL queries against PostgreSQL
-│   └── 04_metrics.ipynb        # RFM, cohorts, charts
-├── sql/                # schema + one file per analytical query
+│   ├── 01_load.ipynb         # first look & data quality
+│   ├── 02_cleaning.ipynb     # cleaning & preparation
+│   ├── 03_sql_analysis.ipynb # 10 SQL queries against PostgreSQL
+│   └── 04_metrics.ipynb      # RFM, cohorts, charts
+├── sql/
+│   ├── schema.sql            # tables, keys, constraints, indexes
+│   └── 01–10_*.sql           # one file per analytical query
 ├── src/
-│   ├── build_db.py     # loads clean data into PostgreSQL
-│   └── db.py           # connection helper used by the notebooks
-├── reports/figures/    # charts used in this README
+│   ├── build_db.py           # loads clean data into PostgreSQL
+│   └── db.py                 # connection helper used by the notebooks
+├── reports/figures/          # charts used in this README
 ├── docker-compose.yml
 ├── .env.example
 └── requirements.txt
+```
+
+Database relationships:
+
+```
+customers ──< orders ──< order_items >── products
+                 ├──< order_payments
+                 └──── order_reviews (1 : 0..1)
 ```
 
 ## How to run
@@ -61,71 +170,13 @@ olist-ecommerce-analysis/
    pip install -r requirements.txt
    ```
 4. Run `notebooks/01_load.ipynb` and `notebooks/02_cleaning.ipynb` — the second one writes clean files to `data/processed/`.
-5. Load the clean data into PostgreSQL (recreates all tables, ~15 s):
+5. Load the clean data into PostgreSQL (recreates all tables, ~15–30 s):
    ```bash
    python src/build_db.py
    ```
-6. Continue with `notebooks/03_sql_analysis.ipynb`.
-
-## Data quality findings (stage 1)
-
-| Check | Result |
-| --- | --- |
-| Orders | 99,441 (97% delivered) |
-| Unique customers | 96,096 (`customer_unique_id`; `customer_id` is per order) |
-| Period | Sep 2016 – Oct 2018 (first and last months incomplete) |
-| Orphan rows across foreign keys | none |
-| Orders with several reviews | 547 |
-| Products without category | 610 |
-
-## Cleaning (stage 2)
-
-`notebooks/02_cleaning.ipynb` produces 6 clean tables in `data/processed/`:
-
-| Table | Rows | Primary key |
-| --- | --- | --- |
-| orders | 96,470 | order_id |
-| order_items | 110,189 | order_id, order_item_id |
-| order_payments | 100,748 | order_id, payment_sequential |
-| order_reviews | 95,824 | order_id |
-| customers | 96,470 | customer_id |
-| products | 32,214 | product_id |
-
-**Key definitions used throughout the project**
-
-- **Revenue** = `price + freight_value` from order items (payments differ in only 0.26% of orders).
-- **Customer** = `customer_unique_id` (93,350 unique buyers).
-- **Trend period** = Jan 2017 – Aug 2018 (2016 has too few orders).
-- **Late delivery** = delivered after the estimated date (6.8% of orders).
-
-First insight: only **3.0% of customers** placed more than one order.
-
-## Database (stage 3)
-
-`sql/schema.sql` defines 6 tables with primary keys, foreign keys, `CHECK` constraints and indexes;
-`src/build_db.py` bulk-loads the clean files with `COPY` and verifies row counts.
-
-```
-customers ──< orders ──< order_items >── products
-                 ├──< order_payments
-                 └──── order_reviews (1 : 0..1)
-```
-
-## SQL analysis (stage 3)
-
-10 queries in `sql/`, executed and interpreted in `notebooks/03_sql_analysis.ipynb`
-(CTEs, window functions `LAG` / `RANK` / `NTILE` / `SUM() OVER`, `FILTER`, `PERCENTILE_CONT`, cohort logic with `AGE`).
-
-| Question | Finding |
-| --- | --- |
-| Revenue trend | Fast growth in 2017, **plateau at ~1.0–1.1 M BRL/month** from Mar 2018 |
-| Growth driver | More orders; AOV stable at ~150–170 BRL |
-| Top categories | 5 of 74 categories = 39% of revenue |
-| Geography | SP + RJ + MG = 63% of revenue; remote states pay up to 22% freight |
-| Retention | **Only 3.0% of customers buy twice**; month-1 cohort retention < 1% |
-| Satisfaction | Average score **4.3 on time vs. 2.3 late** (1.7 when 5+ days late) |
-| Payments | 77% credit card, 3.5 installments on average |
+6. Run `notebooks/03_sql_analysis.ipynb` and `notebooks/04_metrics.ipynb`.
 
 ## Data source
 
 [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), CC BY-NC-SA 4.0.
+Monetary values are in Brazilian reais (BRL).
